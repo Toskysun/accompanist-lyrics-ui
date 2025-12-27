@@ -73,6 +73,7 @@ import com.mocharealm.gaze.capsule.ContinuousRoundedRectangle
 import kotlinx.coroutines.android.awaitFrame
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
+import kotlin.math.abs
 
 
 @Composable
@@ -93,7 +94,8 @@ fun PlayerScreen(
                 val newPosition = (latestPlaybackState.position + elapsed).coerceAtMost(
                     latestPlaybackState.duration
                 )
-                if (animatedPosition <= newPosition) animatedPosition = newPosition
+                if (animatedPosition <= newPosition || abs(newPosition - animatedPosition) >= 100) animatedPosition =
+                    newPosition
                 awaitFrame()
             }
         } else {
