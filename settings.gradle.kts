@@ -15,12 +15,6 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
-        maven {
-            url = uri("file:///D:/Android/Maven")
-            mavenContent {
-                includeGroupAndSubgroups("com.mocharealm")
-            }
-        }
         mavenCentral()
     }
 }

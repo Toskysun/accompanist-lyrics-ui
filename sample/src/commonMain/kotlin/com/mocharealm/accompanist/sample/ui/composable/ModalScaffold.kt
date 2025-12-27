@@ -8,10 +8,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -107,8 +110,15 @@ fun MobileModalScaffold(
 
     val screenHeightDp = with(density) { windowInfo.containerSize.height.toDp() }
 
-    val backgroundScale = ((screenHeightDp / 2) / (screenHeightDp / 2))
-        .coerceAtMost(0.95f)
+    val height = with(density) {
+        LocalWindowInfo.current.containerSize.height.toDp()
+    }
+
+    val backgroundScale =
+    ((height / 2 - WindowInsets.statusBars.asPaddingValues()
+        .calculateTopPadding()) / (height / 2)).coerceAtMost(
+        0.95f
+    )
 
     // 1. 使用 Animatable 来管理垂直偏移量
     val offsetY = remember { Animatable(0f) }

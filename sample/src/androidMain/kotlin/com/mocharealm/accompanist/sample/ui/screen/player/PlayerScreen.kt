@@ -90,9 +90,10 @@ fun PlayerScreen(
         if (latestPlaybackState.isPlaying) {
             while (true) {
                 val elapsed = System.currentTimeMillis() - latestPlaybackState.lastUpdateTime
-                animatedPosition = (latestPlaybackState.position + elapsed).coerceAtMost(
+                val newPosition = (latestPlaybackState.position + elapsed).coerceAtMost(
                     latestPlaybackState.duration
                 )
+                if (animatedPosition <= newPosition) animatedPosition = newPosition
                 awaitFrame()
             }
         } else {

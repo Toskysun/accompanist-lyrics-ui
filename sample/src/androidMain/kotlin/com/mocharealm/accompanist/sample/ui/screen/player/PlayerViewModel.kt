@@ -74,6 +74,8 @@ class PlayerViewModel(
     val uiState = _uiState.asStateFlow()
     private var mediaController: MediaController? = null
     private var positionUpdateJob: Job? = null
+    private var artworkClearJob: Job? = null
+    private var luminanceCalculationJob: Job? = null
     private var lastArtworkData: ByteArray? = null
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(playing: Boolean) {
@@ -136,13 +138,18 @@ class PlayerViewModel(
 
         if (!newArtworkData.contentEquals(lastArtworkData)) {
             lastArtworkData = newArtworkData
+            artworkClearJob?.cancel()
+
             if (newArtworkData != null) {
                 val newArtworkBitmap = BitmapFactory.decodeByteArray(newArtworkData, 0, newArtworkData.size).asImageBitmap()
 
                 updateState { it.copy(backgroundState = it.backgroundState.copy(newArtworkBitmap)) }
                 calculateAndApplyLuminance(newArtworkBitmap)
             } else {
-                updateState { it.copy(backgroundState = BackgroundVisualState(null,0f)) }
+                artworkClearJob = viewModelScope.launch {
+                    delay(300)
+                    updateState { it.copy(backgroundState = BackgroundVisualState(null, 0f)) }
+                }
             }
         }
 
@@ -160,7 +167,8 @@ class PlayerViewModel(
     }
 
     private fun calculateAndApplyLuminance(artwork: ImageBitmap) {
-        viewModelScope.launch(Dispatchers.Default) {
+        luminanceCalculationJob?.cancel()
+        luminanceCalculationJob = viewModelScope.launch(Dispatchers.Default) {
             try {
                 val bitmap = artwork.asAndroidBitmap()
                 val w = bitmap.width

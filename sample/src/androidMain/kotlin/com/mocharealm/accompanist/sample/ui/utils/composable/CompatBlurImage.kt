@@ -19,36 +19,68 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.DefaultAlpha
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.DrawScope.Companion.DefaultFilterQuality
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastRoundToInt
 import kotlin.math.ceil
+import kotlin.math.sqrt
 
 @Suppress("DEPRECATION")
-fun blurBitmapWithRenderScript(context: Context, bitmap: Bitmap, radius: Float): Bitmap {
+fun blurBitmapWithRenderScript(context: Context, bitmap: Bitmap, radius: Float, rsProvided: RenderScript? = null): Bitmap {
+    val rs = rsProvided ?: RenderScript.create(context)
+    try {
+        val input = Allocation.createFromBitmap(rs, bitmap)
+        val output = Allocation.createTyped(rs, input.type)
+        val script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
+        script.setRadius(radius.coerceIn(0f, 25f))
+        script.setInput(input)
+        script.forEach(output)
+        val result = createBitmap(bitmap.width, bitmap.height, bitmap.config ?: Bitmap.Config.ARGB_8888)
+        output.copyTo(result)
+        return result
+    } finally {
+        if (rsProvided == null) {
+            rs.destroy()
+        }
+    }
+}
+
+/**
+ * Support radii greater than 25 by performing multiple blur passes. We choose the number of passes
+ * n = ceil((radius / 25)^2) so that each pass radius = radius / sqrt(n) <= 25.
+ * Cap the number of passes to avoid excessive work for extreme radii.
+ */
+@Suppress("DEPRECATION")
+fun blurBitmapWithRenderScriptMultiPass(context: Context, bitmap: Bitmap, radius: Float): Bitmap {
+    if (radius <= 0f) return bitmap
+    if (radius <= 25f) return blurBitmapWithRenderScript(context, bitmap, radius)
+
+    // Number of passes needed so per-pass radius <= 25
+    val passes = ceil((radius / 25f) * (radius / 25f)).toInt()
+    val passRadius = radius / sqrt(passes.toFloat())
+
+    var current = bitmap
     val rs = RenderScript.create(context)
-    val input = Allocation.createFromBitmap(rs, bitmap)
-    val output = Allocation.createTyped(rs, input.type)
-    val script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
-    script.setRadius(radius.coerceIn(0f, 25f))
-    script.setInput(input)
-    script.forEach(output)
-    val result = createBitmap(bitmap.width, bitmap.height, bitmap.config ?: Bitmap.Config.ARGB_8888)
-    output.copyTo(result)
-    rs.destroy()
-    return result
+    try {
+        repeat(passes) {
+            current = blurBitmapWithRenderScript(context, current, passRadius, rs)
+        }
+    } finally {
+        rs.destroy()
+    }
+    return current
 }
 
 fun blurBitmapUnbounded(context: Context, bitmap: Bitmap, radius: Float): Bitmap {
-    val padding = ceil(radius.toDouble()).toInt()
+    val padding = ceil(radius.toDouble()).fastRoundToInt()
     val newWidth = bitmap.width + padding * 2
     val newHeight = bitmap.height + padding * 2
 
@@ -62,8 +94,9 @@ fun blurBitmapUnbounded(context: Context, bitmap: Bitmap, radius: Float): Bitmap
         null // paint
     )
 
-    return blurBitmapWithRenderScript(context, paddedBitmap, radius)
+    return blurBitmapWithRenderScriptMultiPass(context, paddedBitmap, radius)
 }
+
 
 @Composable
 actual fun CompatBlurImage(
@@ -81,7 +114,7 @@ actual fun CompatBlurImage(
         Image(
             bitmap = bitmap,
             contentDescription = contentDescription,
-            modifier = modifier.blur(blurRadius, BlurredEdgeTreatment.Unbounded),
+            modifier = Modifier.blur(blurRadius, BlurredEdgeTreatment.Unbounded).then(modifier),
             alignment = alignment,
             contentScale = contentScale,
             alpha = alpha,
@@ -91,7 +124,7 @@ actual fun CompatBlurImage(
     }
     else {
         val context = LocalContext.current
-        val blurRadiusPx = blurRadius.value
+        val blurRadiusPx = with(LocalDensity.current) {blurRadius.toPx()}
         val blurredBitmap = remember(bitmap) {
             blurBitmapUnbounded(
                 context,

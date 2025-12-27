@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
@@ -30,19 +31,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntSize
@@ -116,7 +116,9 @@ private fun measureSyllablesAndDetermineAnimation(
         }
 
         val useAwesomeAnimation =
-            perCharDuration > fastCharAnimationThresholdMs && wordDuration >= 1000 && !wordContent.isPureCjk() && !isAccompanimentLine
+            perCharDuration > fastCharAnimationThresholdMs && wordDuration >= 1000
+                    && !wordContent.isPureCjk()
+                    && !isAccompanimentLine
 
         word.map { syllable ->
             SyllableLayout(
@@ -351,6 +353,7 @@ fun DrawScope.drawLine(
     currentTimeMs: Int,
     color: Color,
     textMeasurer: TextMeasurer,
+    blendMode: BlendMode,
     showDebugRectangles: Boolean = false
 ) {
     lineLayouts.forEach { rowLayouts ->
@@ -358,10 +361,11 @@ fun DrawScope.drawLine(
 
         val firstSyllableLayout = rowLayouts.first()
         val lastSyllableLayout = rowLayouts.last()
-        val totalHeight = rowLayouts.maxOf { it.textLayoutResult.size.height.toFloat() }
+        val totalHeight = rowLayouts.maxOf { it.textLayoutResult.size.height }.toFloat()
+        val totalWidth = rowLayouts.maxOf { it.textLayoutResult.size.width }.toFloat()
 
-        val verticalPadding = 12.dp.toPx()
-        val horizontalPadding = 8.dp.toPx()
+        val verticalPadding = (totalHeight * 0.1).dp.toPx()
+        val horizontalPadding = (totalWidth * 0.2).dp.toPx()
 
         drawIntoCanvas { canvas ->
             val layerBounds = Rect(
@@ -425,7 +429,7 @@ fun DrawScope.drawLine(
                                 brush = Brush.horizontalGradient(0f to color, 1f to color),
                                 topLeft = Offset(xPos, yPos),
                                 shadow = shadow,
-                                blendMode = BlendMode.Plus
+                                blendMode = blendMode
                             )
                             if (showDebugRectangles) {
                                 drawRect(
@@ -469,7 +473,7 @@ fun DrawScope.drawLine(
                         textLayoutResult = syllableLayout.textLayoutResult,
                         brush = Brush.horizontalGradient(0f to color, 1f to color),
                         topLeft = finalPosition,
-                        blendMode = BlendMode.Plus
+                        blendMode = blendMode
                     )
                     if (showDebugRectangles) {
                         drawRect(
@@ -505,6 +509,7 @@ fun KaraokeLineText(
     activeColor: Color = Color.White,
     normalLineTextStyle: TextStyle,
     accompanimentLineTextStyle: TextStyle,
+    blendMode: BlendMode = BlendMode.Plus
 ) {
     val isFocused = line.isFocused(currentTimeMs)
     val textMeasurer = rememberTextMeasurer()
@@ -536,7 +541,6 @@ fun KaraokeLineText(
                 .padding(vertical = 8.dp, horizontal = 16.dp).graphicsLayer {
                     scaleX = animatedScale
                     scaleY = animatedScale
-                    alpha = animatedAlpha
                     transformOrigin = TransformOrigin(
                         if (line.alignment == KaraokeAlignment.Start) 0f else 1f, 1f
                     )
@@ -544,7 +548,9 @@ fun KaraokeLineText(
             verticalArrangement = Arrangement.spacedBy(2.dp),
             horizontalAlignment = if (line.alignment == KaraokeAlignment.Start) Alignment.Start else Alignment.End
         ) {
-            BoxWithConstraints {
+            BoxWithConstraints(Modifier.graphicsLayer {
+                alpha = animatedAlpha
+            }) {
                 val density = LocalDensity.current
                 val availableWidthPx = with(density) { maxWidth.toPx() }
 
@@ -608,25 +614,21 @@ fun KaraokeLineText(
                         lineLayouts = finalLineLayouts,
                         currentTimeMs = currentTimeMs,
                         color = activeColor,
-                        textMeasurer = textMeasurer
+                        textMeasurer = textMeasurer,
+                        blendMode = blendMode
                     )
                 }
             }
 
             line.translation?.let { translation ->
-                val result = remember(translation) { textMeasurer.measure(translation) }
-                val color = activeColor.copy(0.6f)
-                val luminance = color.luminance()
-                val textColor = if (luminance > 0.7f) {
-                    activeColor.copy(alpha = 0.8f).compositeOver(Color.Black)
-                } else {
-                    activeColor.copy(alpha = 0.8f)
-                }
-                Canvas(modifier = Modifier.size(result.size.toDpSize())) {
-                    drawText(
-                        textLayoutResult = result, color = textColor, blendMode = BlendMode.Plus
-                    )
-                }
+                Text(
+                    translation, color = activeColor.copy(0.4f),
+                    modifier = Modifier
+                        .graphicsLayer {
+                            this.blendMode = blendMode
+                        },
+                    textAlign = if (line.alignment == KaraokeAlignment.End) TextAlign.End else TextAlign.Start
+                )
             }
         }
     }
