@@ -27,7 +27,7 @@ private object WindowBreakpoints {
     val Desktop: Dp = 840.dp
 }
 
-private val LocalWindowLayoutType = staticCompositionLocalOf<WindowLayoutType> {
+val LocalWindowLayoutType = staticCompositionLocalOf<WindowLayoutType> {
     error("No WindowLayoutType provided. Did you forget to wrap your app in AdaptiveLayoutProvider?")
 }
 

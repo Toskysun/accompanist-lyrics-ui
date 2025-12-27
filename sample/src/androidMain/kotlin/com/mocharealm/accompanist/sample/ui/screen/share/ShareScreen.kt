@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,6 +31,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -58,12 +60,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine
+import com.mocharealm.accompanist.sample.Res
+import com.mocharealm.accompanist.sample.ic_accompanist
 import com.mocharealm.accompanist.sample.ui.composable.background.BackgroundVisualState
 import com.mocharealm.accompanist.sample.ui.composable.background.FlowingLightBackground
 import com.mocharealm.accompanist.sample.ui.utils.composable.Capturable
 import com.mocharealm.accompanist.sample.ui.utils.composable.CapturableController
 import com.mocharealm.accompanist.sample.ui.utils.composable.rememberCapturableController
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.absoluteValue
 
@@ -317,6 +322,7 @@ private fun ColumnScope.ShareGenerateStep(
             }
         }
     }
+
     // Settings
     Column {
         Spacer(
@@ -430,11 +436,34 @@ fun ShareCardApple(
                             compositingStrategy = CompositingStrategy.Offscreen
                         }
                 ) {
+                    item("logo") {
+                        Row(
+                            Modifier
+                                .padding(16.dp)
+                                .alpha(0.4f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painterResource(Res.drawable.ic_accompanist),
+                                null,
+                                Modifier.size(32.dp),
+                                tint = Color.White
+                            )
+                            Text(
+                                "Accompanist",
+                                style = LocalTextStyle.current.copy(
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            )
+                        }
+                    }
                     items(selectedLines, key = { it.start }) { line ->
                         Column(
                             Modifier
-                                .padding(top = 16.dp)
                                 .padding(horizontal = 16.dp)
+                                .padding(bottom = 16.dp)
                         ) {
                             Text(
                                 line.content(),
@@ -443,46 +472,23 @@ fun ShareCardApple(
                                     fontWeight = FontWeight.Bold,
                                     textMotion = TextMotion.Animated
                                 ),
-                                color = Color.White.copy(0.4f)
+                                color = Color.White
                             )
                             AnimatedVisibility(showTranslation) {
                                 line.translation?.let { translation ->
                                     Text(
                                         translation,
-                                        color = Color.White.copy(0.8f)
+                                        color = Color.White.copy(0.2f)
                                     )
                                 }
                             }
                         }
                     }
-                    item("spacing") {
-                        Spacer(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(16.dp)
-                        )
-                    }
-                    item("logo") {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .background(Color.White.copy(0.1f))
-                                .padding(16.dp)
-                        ) {
-                            Text(
-                                "by Accompanist",
-                                style = LocalTextStyle.current.copy(
-                                    fontSize = 16.sp,
-                                    textMotion = TextMotion.Animated
-                                ),
-                                color = Color.White
-                            )
-                        }
+                    item("info") {
+
                     }
                 }
             }
-
-
         }
     }
 }
@@ -591,5 +597,4 @@ fun Modifier.pagerCubeInDepthTransition(page: Int, pagerState: PagerState) = gra
     val scale = 1f - 0.2f * pageOffset.absoluteValue
     scaleX = scale
     scaleY = scale
-
 }

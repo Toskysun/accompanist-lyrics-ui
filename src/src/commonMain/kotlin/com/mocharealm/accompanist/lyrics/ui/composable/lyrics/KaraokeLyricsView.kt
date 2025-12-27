@@ -77,13 +77,11 @@ fun KaraokeLyricsView(
     normalLineTextStyle: TextStyle = LocalTextStyle.current.copy(
         fontSize = 34.sp,
         fontWeight = FontWeight.Bold,
-        fontFamily = SFPro(),
         textMotion = TextMotion.Animated,
     ),
     accompanimentLineTextStyle: TextStyle = LocalTextStyle.current.copy(
         fontSize = 20.sp,
         fontWeight = FontWeight.Bold,
-        fontFamily = SFPro(),
         textMotion = TextMotion.Animated,
     ),
     textColor: Color = Color.White,
