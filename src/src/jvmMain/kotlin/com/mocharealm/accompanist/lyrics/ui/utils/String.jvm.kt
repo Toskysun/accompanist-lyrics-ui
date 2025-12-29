@@ -19,6 +19,28 @@ private val cjkBlock = listOf(
     Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_H
 )
 
+private val arabicBlock = mutableListOf(
+    Character.UnicodeBlock.ARABIC,
+    Character.UnicodeBlock.ARABIC_SUPPLEMENT,
+    Character.UnicodeBlock.ARABIC_EXTENDED_A,
+    Character.UnicodeBlock.ARABIC_PRESENTATION_FORMS_A,
+    Character.UnicodeBlock.ARABIC_PRESENTATION_FORMS_B,
+    Character.UnicodeBlock.ARABIC_EXTENDED_B
+)
+
+private val devanagariBlock = listOf(
+    Character.UnicodeBlock.DEVANAGARI,
+    Character.UnicodeBlock.DEVANAGARI_EXTENDED
+)
+
 actual fun Char.isCjk(): Boolean {
     return Character.UnicodeBlock.of(this) in cjkBlock
+}
+
+actual fun Char.isArabic(): Boolean {
+    return Character.UnicodeBlock.of(this) in arabicBlock
+}
+
+actual fun Char.isDevanagari(): Boolean {
+    return Character.UnicodeBlock.of(this) in devanagariBlock
 }
