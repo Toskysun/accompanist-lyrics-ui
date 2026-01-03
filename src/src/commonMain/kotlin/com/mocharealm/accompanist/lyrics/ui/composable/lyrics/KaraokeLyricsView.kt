@@ -66,6 +66,14 @@ import com.mocharealm.accompanist.lyrics.ui.utils.isRtl
 import com.mocharealm.accompanist.lyrics.ui.utils.modifier.dynamicFadingEdge
 import com.mocharealm.gaze.capsule.ContinuousRoundedRectangle
 import kotlin.math.abs
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.runtime.mutableStateMapOf
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
+import androidx.compose.ui.text.style.TextDirection
+import com.mocharealm.accompanist.lyrics.ui.composable.lyrics.SyllableLayout
+import com.mocharealm.accompanist.lyrics.ui.composable.lyrics.measureSyllablesAndDetermineAnimation
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -96,6 +104,46 @@ fun KaraokeLyricsView(
     val stableNormalTextStyle = remember(normalLineTextStyle) { normalLineTextStyle }
     val stableAccompanimentTextStyle =
         remember(accompanimentLineTextStyle) { accompanimentLineTextStyle }
+
+    val textMeasurer = rememberTextMeasurer()
+    val layoutCache = remember { mutableStateMapOf<Int, List<SyllableLayout>>() }
+
+    LaunchedEffect(lyrics, stableNormalTextStyle, stableAccompanimentTextStyle) {
+        layoutCache.clear()
+        withContext(Dispatchers.Default) {
+            val normalStyle = stableNormalTextStyle.copy(textDirection = TextDirection.Content)
+            val accompanimentStyle = stableAccompanimentTextStyle.copy(textDirection = TextDirection.Content)
+            
+            val normalSpaceWidth = textMeasurer.measure(" ", normalStyle).size.width.toFloat()
+            val accompanimentSpaceWidth = textMeasurer.measure(" ", accompanimentStyle).size.width.toFloat()
+
+            lyrics.lines.forEachIndexed { index, line ->
+                if (!isActive) return@forEachIndexed
+                if (line is KaraokeLine) {
+                    val style = if (line.isAccompaniment) accompanimentStyle else normalStyle
+                    val spaceWidth = if (line.isAccompaniment) accompanimentSpaceWidth else normalSpaceWidth
+                    
+                    val processedSyllables = if (line.alignment == KaraokeAlignment.End) {
+                        line.syllables.dropLastWhile { it.content.isBlank() }
+                    } else {
+                        line.syllables
+                    }
+
+                    val layout = measureSyllablesAndDetermineAnimation(
+                        syllables = processedSyllables,
+                        textMeasurer = textMeasurer,
+                        style = style,
+                        isAccompanimentLine = line.isAccompaniment,
+                        spaceWidth = spaceWidth
+                    )
+                    
+                    withContext(Dispatchers.Main) {
+                        layoutCache[index] = layout
+                    }
+                }
+            }
+        }
+    }
 
     val currentTimeMs: () -> Int = currentPosition
 
@@ -347,7 +395,8 @@ fun KaraokeLyricsView(
                                         accompanimentLineTextStyle = stableAccompanimentTextStyle,
                                         activeColor = textColor,
                                         blendMode = blendMode,
-                                        showDebugRectangles = showDebugRectangles
+                                        showDebugRectangles = showDebugRectangles,
+                                        precalculatedLayouts = layoutCache[index]
                                     )
                                 } else {
                                     val visibilityRange = accompanimentVisibilityRanges[index]
@@ -393,7 +442,8 @@ fun KaraokeLyricsView(
                                             normalLineTextStyle = stableNormalTextStyle,
                                             accompanimentLineTextStyle = stableAccompanimentTextStyle,
                                             activeColor = textColor,
-                                            blendMode = blendMode
+                                            blendMode = blendMode,
+                                            precalculatedLayouts = layoutCache[index]
                                         )
                                     }
                                 }
